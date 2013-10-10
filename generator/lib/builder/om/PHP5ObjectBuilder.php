@@ -4617,6 +4617,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
     {
         $relatedObjectClassName = $this->getFKPhpNameAffix($crossFK, $plural = false);
 
+		$selfRelationName = $this->getFKPhpNameAffix($refFK, $plural = false);
         $selfRelationNamePlural = $this->getFKPhpNameAffix($refFK, $plural = true);
 
         $lowerRelatedObjectClassName = lcfirst($relatedObjectClassName);
@@ -4628,21 +4629,26 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
         $tblFK = $refFK->getTable();
         $foreignObjectName = '$' . $tblFK->getStudlyPhpName();
 
+		$fkQueryClassname = $this->getNewStubQueryBuilder($tblFK)->getClassname();
+		
         $script .= "
     /**
      * @param	{$relatedObjectClassName} \${$lowerRelatedObjectClassName} The $lowerRelatedObjectClassName object to add.
      */
     protected function doAdd{$relatedObjectClassName}(\${$lowerRelatedObjectClassName})
     {
+        \${$lowerRelatedObjectClassName}Relationship = {$fkQueryClassname}::create()
+                                    ->filterBy{$selfRelationName}(\$this)
+                                    ->filterBy{$relatedObjectClassName}(\${$lowerRelatedObjectClassName})
+                                    ->findOne();
+    
         // set the back reference to this object directly as using provided method either results
         // in endless loop or in multiple relations
-        if (!\${$lowerRelatedObjectClassName}->get{$selfRelationNamePlural}()->contains(\$this)) {
-            {$foreignObjectName} = new {$className}();
+        //if (!\${$lowerRelatedObjectClassName}->get{$selfRelationNamePlural}()->contains(\$this)) {
+        if (!\${$lowerRelatedObjectClassName}Relationship) {
+		    {$foreignObjectName} = new {$className}();
             {$foreignObjectName}->set{$relatedObjectClassName}(\${$lowerRelatedObjectClassName});
             \$this->add{$refKObjectClassName}({$foreignObjectName});
-
-            \$foreignCollection = \${$lowerRelatedObjectClassName}->get{$selfRelationNamePlural}();
-            \$foreignCollection[] = \$this;
         }
     }
 ";
