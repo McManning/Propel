@@ -342,6 +342,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
         $this->addPrimaryString($script);
 
         $this->addIsAlreadyInSave($script);
+        $this->addIsAlreadyInCopy($script);
 
         // apply behaviors
         $this->applyBehaviorModifier('objectMethods', $script, "	");
@@ -394,12 +395,6 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
      * @var        " . $this->getPeerClassname() . "
      */
     protected static \$peer;
-
-    /**
-     * The flag var to prevent infinite loop in deep copy
-     * @var       boolean
-     */
-    protected \$startCopy = false;
 ";
         if (!$table->isAlias()) {
             $this->addColumnAttributes($script);
@@ -421,6 +416,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
 
         $this->addAlreadyInSaveAttribute($script);
         $this->addAlreadyInValidationAttribute($script);
+        $this->addAlreadyInCopyAttribute($script);
         $this->addAlreadyInClearAllReferencesDeepAttribute($script);
 
         // apply behaviors
@@ -5361,6 +5357,23 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
     }
 
     /**
+     * Adds the $alreadyInCopy attribute, which prevents attempting to re-copy the same object.
+     *
+     * @param string &$script The script will be modified in this method.
+     */
+    protected function addAlreadyInCopyAttribute(&$script)
+    {
+        $script .= "
+    /**
+     * The flag var to prevent infinite loop in deep copy, if this object
+     * is back-referenced by another object.
+     * @var        boolean
+     */
+    protected \$alreadyInCopy = false;
+";
+    }
+
+    /**
      * Adds the $alreadyInValidation attribute, which prevents attempting to re-validate the same object.
      *
      * @param string &$script The script will be modified in this method.
@@ -5636,12 +5649,12 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
         if (count($table->getReferrers()) > 0 || count($table->getForeignKeys()) > 0) {
             $script .= "
 
-        if (\$deepCopy && !\$this->startCopy) {
+        if (\$deepCopy && !\$this->alreadyInCopy) {
             // important: temporarily setNew(false) because this affects the behavior of
             // the getter/setter methods for fkey referrer objects.
             \$copyObj->setNew(false);
             // store object hash to prevent cycle
-            \$this->startCopy = true;
+            \$this->alreadyInCopy = true;
 ";
             foreach ($table->getReferrers() as $fk) {
                 //HL: commenting out self-referential check below
@@ -5653,7 +5666,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
                     $afx = $this->getRefFKPhpNameAffix($fk, $plural = false);
                     $script .= "
             \$relObj = \$this->get$afx();
-            if (\$relObj) {
+            if (\$relObj && !\$relObj->isAlreadyInCopy()) {
                 \$copyObj->set$afx(\$relObj->copy(\$deepCopy));
             }
 ";
@@ -5676,7 +5689,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
                     $afx = $this->getFKPhpNameAffix($fk, $plural = false);
                     $script .= "
             \$relObj = \$this->get$afx();
-            if (\$relObj) {
+            if (\$relObj && !\$relObj->isAlreadyInCopy()) {
                 \$copyObj->set$afx(\$relObj->copy(\$deepCopy));
             }
 ";
@@ -5684,7 +5697,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
             }
             $script .= "
             //unflag object copy
-            \$this->startCopy = false;
+            \$this->alreadyInCopy = false;
         } // if (\$deepCopy)
 ";
         } /* if (count referrers > 0 ) */
@@ -5740,6 +5753,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
         $script .= "
         \$this->alreadyInSave = false;
         \$this->alreadyInValidation = false;
+        \$this->alreadyInCopy = false;
         \$this->alreadyInClearAllReferencesDeep = false;
         \$this->clearAllReferences();";
 
@@ -5918,6 +5932,21 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
     public function isAlreadyInSave()
     {
         return \$this->alreadyInSave;
+    }
+";
+    }
+    
+    protected function addIsAlreadyInCopy(&$script)
+    {
+        $script .= "
+    /**
+     * return true if the object is in a deep copy state
+     *
+     * @return boolean
+     */
+    public function isAlreadyInCopy()
+    {
+        return \$this->alreadyInCopy;
     }
 ";
     }
