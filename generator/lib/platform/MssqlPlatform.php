@@ -73,7 +73,7 @@ class MssqlPlatform extends DefaultPlatform
         $ret = '';
         foreach ($table->getForeignKeys() as $fk) {
             $ret .= "
-IF EXISTS (SELECT 1 FROM sysobjects WHERE type ='RI' AND name='" . $fk->getName() . "')
+IF EXISTS (SELECT 1 FROM sysobjects WHERE type ='F' AND name='" . $fk->getName() . "')
     ALTER TABLE " . $this->quoteIdentifier($table->getName()) . " DROP CONSTRAINT " . $this->quoteIdentifier($fk->getName()) . ";
 ";
         }
