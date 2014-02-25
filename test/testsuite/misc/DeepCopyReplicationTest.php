@@ -51,9 +51,9 @@ class DeepCopyReplicationTest extends BookstoreTestBase
     }
     
     /**
-     * Variant mimicing workflow of the IRB (research.osu.edu) ORM as closely as possible
+     * Variant without instance pooling
      */
-    public function testDeepCopyOneToOneORIRB()
+    public function testDeepCopyOneToOneNoInstancePooling()
     {
         $a = new BookstoreEmployee();
         $a->setName('Joe');
